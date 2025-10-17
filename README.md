@@ -1,198 +1,333 @@
-# 🌸 Perfume Recommender — AI-Driven Fragrance Recommendation System
+# 🌸 Perfume Recommender — AI/ML Project (Detailed, Recruiter-Friendly README)
 
-> **An AI-powered perfume recommender that blends semantic search, data-driven ranking, and GPT-4o reasoning to suggest fragrances based on user preferences, use-cases, and scent profiles.**
-
-![screenshot](assets/preview.png)
+> A hybrid recommendation system that blends **semantic retrieval**, **heuristic ranking**, and **GenAI explanations** to suggest fragrances based on user taste, use-cases, and constraints. Built with **FastAPI + Pandas + Vanilla JS**.
 
 ---
 
-## 🚀 Project Overview
+## Table of Contents
 
-This project is a **hybrid recommender system** designed to suggest perfumes tailored to user preferences.  
-It combines **machine learning**, **information retrieval**, and **GenAI explainability** using a clean **FastAPI + Vanilla JS** stack.
-
-Users can:
-- Input their **favorite perfumes** and **preferred notes**
-- Set filters (price, gender, longevity, sillage, rating)
-- Get **ranked recommendations** based on semantic similarity
-- Optionally enable **AI explanations** powered by OpenAI GPT-4o-mini
-
----
-
-## 🧠 Core Idea
-
-Perfume preference is deeply **semantic** — users think in scents and moods, not numbers.  
-This system captures that by embedding perfumes into a **vector space** where semantic similarity drives recommendations.
-
-| Component | Description |
-|------------|-------------|
-| **Semantic Search** | Uses text embeddings or TF-IDF vectors to find perfumes similar to user input |
-| **Hybrid Ranking** | Combines similarity with rating, longevity, and popularity |
-| **Explainable AI** | GPT-4o-mini provides short, natural-language reasoning for top results |
-| **Clean UI** | Built with HTML, CSS, and JavaScript; mobile-friendly and intuitive |
+1. [Project Goals](#project-goals)  
+2. [High-Level Architecture](#high-level-architecture)  
+3. [Data: Collection → Cleaning → Final Schema](#data-collection--cleaning--final-schema)  
+4. [Algorithms: Retrieval, Scoring, Explainability](#algorithms-retrieval-scoring-explainability)  
+5. [Backend API](#backend-api)  
+6. [Frontend UX & Accessibility](#frontend-ux--accessibility)  
+7. [Configuration & Environment](#configuration--environment)  
+8. [Security, Secrets & Cost Controls](#security-secrets--cost-controls)  
+9. [Local Development & Running](#local-development--running)  
+10. [Testing & Quality](#testing--quality)  
+11. [Performance Notes](#performance-notes)  
+12. [Troubleshooting](#troubleshooting)  
+13. [Roadmap / Future Work](#roadmap--future-work)  
+14. [Author](#author)  
+15. [License](#license)
 
 ---
 
-## 📂 Directory Structure
+## Project Goals
+
+- Build an **explainable perfume recommender** that feels natural for users who think in notes, vibes, and occasions (e.g., *“fresh office summer”*).  
+- Keep stack **simple and transparent** so recruiters can quickly see the ML/IR decisions.  
+- Provide **clear separation** of concerns: retrieval (semantic similarity), ranking (signals), and explainability (LLM).  
+- Make it **safe to demo locally** without racking up unexpected LLM costs.
+
+---
+
+## High-Level Architecture
 
 ```
-perfume-recommender/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI backend
-│   │   ├── providers.py         # LLM connector (OpenAI)
-│   │   ├── recommender.py       # scoring logic
-│   │   ├── vectorstore.py       # semantic similarity search
-│   │   └── templates/
-│   │       ├── index.html       # main UI
-│   │       ├── intro.html       # usage instructions
-│   │       └── about.html       # algorithm details
-│   └── static/
-│       ├── style.css            # beige luxury theme
-│       └── app.js               # interactive frontend
-└── data/
-    └── perfumes.csv             # cleaned Fragrantica dataset
+┌──────────────────────────────────────────────────────────────────┐
+│                            Frontend (Jinja2 + Vanilla JS)        │
+│  index.html  style.css  app.js                                    │
+│  - Inputs: liked perfumes, notes, filters, use-case chips         │
+│  - Renders cards, stars, AI reasoning (“AI says”)                 │
+└──────────────┬────────────────────────────────────────────────────┘
+               │  POST /api/recommend (JSON)
+┌──────────────▼────────────────────────────────────────────────────┐
+│                          FastAPI Backend                          │
+│  main.py                                                          │
+│  - Loads perfumes.csv                                             │
+│  - Vector store query (content similarity)                        │
+│  - Filter + composite scoring                                     │
+│  - Optional LLM explanation (providers.py)                        │
+└──────────────┬────────────────────────────────────────────────────┘
+               │
+┌──────────────▼───────────┐    ┌───────────────────────────────────┐
+│  vectorstore.py          │    │ providers.py (OpenAI)             │
+│  - Build text corpus     │    │ - Reads OPENAI_API_KEY            │
+│  - Fit TF‑IDF encoder    │    │ - Chat completions for reasoning  │
+│  - Cosine similarity     │    └───────────────────────────────────┘
+└──────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                              data/perfumes.csv                    │
+│  brand,name,gender,price_min,price_max,main_accords,              │
+│  longevity,sillage,rating_value,rating_count,description,url      │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧮 Algorithm
+## Data: Collection → Cleaning → Final Schema
 
-### 1. Semantic Vector Search
+### 1) Collection
+- Source: **Fragrantica** dataset (public datasets and community exports).  
+- Strategy: prefer datasets that include **brand, name, accords, description, rating, longevity, sillage**.  
+- Downloaded raw CSV/JSON and placed an intermediate file in `data/` (not committed if license-sensitive).
 
-Each perfume is represented by a **text vector** built from its:
-```
-brand + name + main_accords + description
-```
-We compute **cosine similarity** between the user query and all perfumes:
-```
-similarity = (A ⋅ B) / (||A|| * ||B||)
-```
+### 2) Cleaning
+Implement a small cleaning script (example `scripts/clean_fragrantica.py` or integrated in your pipeline):
 
-### 2. Rule-Based Filtering
-Filters apply constraints such as:
-- `price_min`, `price_max`
-- `rating_min`, `rating_count_min`
-- `longevity_min`, `sillage_min`
-- `gender`
+- **Normalize column names** → lowercase + underscores (e.g., `Rating Value → rating_value`).  
+- **Select columns** → keep only fields the recommender uses.  
+- **Price** → convert to PLN where possible or set approximate ranges (optional).  
+- **Text normalization** → strip whitespace, fill empties with `""`.  
+- **Numeric coercion** → `pd.to_numeric(..., errors="coerce")` then fill NaNs with defaults.  
+- **Accords** → ensure `main_accords` is a single `|`-separated string (e.g., `"citrus|woody|aromatic"`).  
+- **Gender** → standardize to `Male`, `Female`, `Unisex`; infer from description if missing (regex).  
+- **URL** → keep a `url` column for users to click through to Fragrantica.
 
-### 3. Weighted Ranking
-Final ranking score:
-```
-score = 0.40*content_sim + 0.15*usecase + 0.15*longevity +
-        0.20*rating + 0.10*rating_count
-```
+> See `main.py::load_df()` for robust loading and type coercion.
 
-### 4. Use-case Scoring
-A small overlap metric to check fit between user’s selected use-cases and perfume accords.
+### 3) Final Schema (perfumes.csv)
+Minimal columns used by the system:
 
-### 5. GenAI Explanation Layer
-Top-K results get reasoning generated by `GPT-4o-mini`, returning two concise bullet points explaining *why* it matches the user.
-
----
-
-## 🧰 Tech Stack
-
-| Layer | Technology |
-|-------|-------------|
-| Backend | FastAPI, Pandas |
-| Frontend | Vanilla JS, Jinja2, HTML5, CSS3 |
-| Vector Search | TF-IDF / cosine similarity |
-| AI Reasoning | OpenAI GPT-4o-mini |
-| Deployment | Render / Docker |
-| Data | Cleaned Fragrantica dataset |
+| Column          | Type     | Example                                 |
+|-----------------|----------|-----------------------------------------|
+| brand           | str      | `Dior`                                  |
+| name            | str      | `Sauvage`                               |
+| gender          | str      | `Male` / `Female` / `Unisex`            |
+| price_min       | float    | `280`                                   |
+| price_max       | float    | `500`                                   |
+| main_accords    | str      | `citrus|woody|aromatic`                 |
+| longevity       | float    | `4.0`                                   |
+| sillage         | float    | `3.5`                                   |
+| rating_value    | float    | `4.3`                                   |
+| rating_count    | int      | `1200`                                  |
+| description     | str      | short textual description               |
+| url             | str      | `https://www.fragrantica.com/...`       |
 
 ---
 
-## ⚙️ Setup & Run Locally
+## Algorithms: Retrieval, Scoring, Explainability
 
-### 1. Clone
+### 1) Retrieval (Content-Based Similarity)
+- Build a text corpus per perfume:
+  ```
+  text = f"{brand} {name}. accords: {main_accords}. {description}"
+  ```
+- Fit **TF‑IDF** vectorizer (or embeddings if configured) → `vectorstore.py`.
+- Convert user query to text:
+  ```
+  query_text = " ".join(liked + preferred_notes) or "fresh versatile office citrus"
+  ```
+- Compute **cosine similarity** between query vector and item vectors.
+- Keep similarity scores as `content_sim` and pass to the ranker.
+
+### 2) Heuristic Filters
+Apply hard filters to prune the search space:
 ```
-git clone https://github.com/tyudope/perfume-recommender.git
-cd perfume-recommender/backend
+price_min/max, rating_min, rating_count_min, longevity_min, sillage_min, gender
 ```
 
-### 2. Install dependencies
+### 3) Use‑Case Fit
+Map use-cases (chips: `office`, `date`, `summer`, `winter`) to accords or tags and compute a **set-overlap score** in `recommender.py`:
 ```
-pip install -r requirements.txt
-```
-
-### 3. Create `.env`
-```
-OPENAI_API_KEY=sk-xxxxxx
-OPENAI_MODEL=gpt-4o-mini
-MAX_K=10
-MAX_LLM_EXPLAINS=5
+usecase_score = |intersection| / |union|  in [0, 1]
 ```
 
-### 4. Run
+### 4) Composite Scoring
+Weighted linear combination (tuned for intuitive results):
 ```
-uvicorn app.main:app --reload
+score = 0.40 * content_sim
+      + 0.15 * usecase
+      + 0.15 * longevity_norm     (longevity / 5)
+      + 0.20 * rating_norm        (rating_value / 5)
+      + 0.10 * rating_count_norm  (min(rating_count/2000, 1))
 ```
-Then visit: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+### 5) Explainability (Optional GenAI Layer)
+For the top `N` items (capped), call the LLM with **only** the data we show to users and ask for **two concise bullets** explaining the match.  
+- Model: `gpt-4o-mini` (configurable).  
+- Provider code: `providers.py` (reads key from `.env`, uses `/chat/completions` with `response_format=json_object`).  
+- Output attached as `ai_why` per item and rendered on the card.
 
 ---
 
-## 🌐 Deployment (Render)
+## Backend API
 
-1. Connect your GitHub repo to [Render.com](https://render.com)
-2. Add environment variables from `.env`
-3. Set build command:
-   ```
-   pip install -r backend/requirements.txt
-   ```
-4. Start command:
-   ```
-   cd backend && uvicorn app.main:app --host 0.0.0.0 --port 10000
-   ```
-5. Enable auto-deploys.
+### Endpoints
+- `GET /` → main UI (Jinja template)  
+- `GET /intro` → how-to guide  
+- `GET /about` → algorithm page  
+- `GET /api/health` → `{ ok: true, catalog_size: <int> }`  
+- `POST /api/recommend` → returns recommendations
 
----
-
-## 💡 Features
-
-- ✅ Content-based perfume recommendations
-- ✅ Dynamic filters & semantic search
-- ✅ AI-generated explanations (“AI says…”)
-- ✅ Clean, mobile-friendly UI
-- ✅ Render-ready deployment
-- ✅ Simple, readable Python & JS architecture
-
----
-
-## 🧩 Example Output
-
+### Request (JSON)
 ```json
 {
-  "brand": "Chanel",
-  "name": "Bleu de Chanel",
-  "score": 0.547,
-  "accords": ["citrus", "woody", "aromatic"],
-  "ai_why": "• Shares citrus–woody profile you enjoy\n• Works well for summer and office wear"
+  "liked": ["Dior Sauvage", "Bleu de Chanel"],
+  "preferred_notes": ["citrus", "woody"],
+  "use_cases": ["office", "summer"],
+  "price_min": 200,
+  "price_max": 900,
+  "rating_min": 0,
+  "rating_count_min": 0,
+  "longevity_min": 0,
+  "sillage_min": 0,
+  "gender": "Male",
+  "k": 8,
+  "explain": true
+}
+```
+
+### Response (JSON)
+```json
+{
+  "llm_used": true,
+  "results": [
+    {
+      "brand": "Chanel",
+      "name": "Bleu de Chanel",
+      "gender": "Male",
+      "price_range": [350, 600],
+      "accords": ["citrus", "woody", "aromatic"],
+      "longevity": 4.2,
+      "sillage": 3.8,
+      "rating_value": 4.5,
+      "rating_count": 15400,
+      "url": "https://...",
+      "description": "Fresh woody aromatic...",
+      "score": 0.547,
+      "why": "matches your scent profile; fits your use-cases; long-lasting performance",
+      "ai_why": "• Shares citrus–woody DNA you enjoy\n• Versatile for office and warm weather"
+    }
+  ]
 }
 ```
 
 ---
 
-## 🧑‍💻 Author
+## Frontend UX & Accessibility
 
-**Selim Dalçiçek**  
-Student at Polish-Japanese Academy of Information Technology (PJATK)  
-🎯 Aspiring Machine Learning Engineer | Data Science Enthusiast  
-📍 Warsaw, Poland  
-
----
-
-## 🧠 Future Improvements
-
-- Replace TF-IDF with OpenAI `text-embedding-3-small`
-- Add collaborative filtering for user history
-- Improve rating normalization with Bayesian averages
-- Support multilingual input (PL, EN, TR)
-- Deploy full-stack version with user accounts
+- **Chips** (office/date/summer/winter) act as toggles — hover/active effects and keyboard focus possible.  
+- **Star UI** shows **rating, longevity, sillage** (1–5).  
+- **AI box** (“💡 AI says”) appears only if explanations are enabled and returned.  
+- **Fragrantica link** on each card (`url`) for deeper exploration.  
+- **ARIA**: results container has `aria-live="polite"` to announce updates.
 
 ---
 
-## 📜 License
+## Configuration & Environment
 
-MIT License — free to use and modify.
+Create `backend/.env` (not committed):
+```
+# OpenAI
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_MODEL=gpt-4o-mini
+
+# Safety caps
+MAX_K=10
+MAX_LLM_EXPLAINS=5
+```
+
+- The provider accepts **either** `OPENAI_API_KEY` or `LLM_API_KEY`, and **either** `OPENAI_MODEL` or `LLM_MODEL`.  
+- `MAX_LLM_EXPLAINS` caps how many top results get AI bullets per request.
+
+---
+
+## Security, Secrets & Cost Controls
+
+- **No keys in Git**: never commit `.env`. Keep a `.env.example` without secrets.  
+- **Server-side key usage**: the frontend never sees the API key; all LLM calls happen in `providers.py`.  
+- **Input validation**: Pydantic model `RecommendRequest` enforces types and sane bounds (e.g., `k ≤ MAX_K`).  
+- **Abuse controls (optional)**: You can add rate limiting (e.g., `slowapi`) or daily caps per-IP if hosting publicly.  
+- **Explain cap**: `MAX_LLM_EXPLAINS` prevents overly long/expensive AI calls.  
+- **Logging**: avoid logging PII or secrets; log only high-level events and errors.
+
+---
+
+## Local Development & Running
+
+```bash
+# 1) Clone
+git clone https://github.com/tyudope/perfume-recommender.git
+cd perfume-recommender
+
+# 2) Create virtual env & activate
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# 3) Install backend deps
+pip install -r backend/requirements.txt
+
+# 4) Create backend/.env (see above)
+
+# 5) Run API
+cd backend
+uvicorn app.main:app --reload
+
+# 6) Open UI
+# http://127.0.0.1:8000
+```
+
+**Dev Tips**
+- Use a branch (e.g., `git checkout -b ai-explanations`) for experiments.  
+- Hard refresh the browser to bust static caching: `Cmd/Ctrl + Shift + R`.
+
+---
+
+## Testing & Quality
+
+
+- **Smoke tests**:
+  - `/api/health` returns `ok: true`
+  - `/api/recommend` returns results for a simple payload
+  - LLM disabled → app still works (no `ai_why` fields)
+- **Data checks**:
+  - Required columns exist in `perfumes.csv`
+  - No critical columns all-null
+  - Reasonable value ranges
+
+---
+
+## Performance Notes
+
+- **Cold start**: TF‑IDF fit happens once at startup; keep `perfumes.csv` compact (tens of thousands of rows is fine).  
+- **Runtime**: Query-time involves a single cosine similarity + Pandas filtering + ranking → typically low latency on laptop hardware.  
+- **LLM**: Explanations add network latency; capped by `MAX_LLM_EXPLAINS` to keep UX snappy.
+
+---
+
+## Troubleshooting
+
+- **Styles missing on /intro or /about** → ensure `<link rel="stylesheet" href="/static/style.css">` (absolute path) and `.container` wrapper.  
+- **No AI box appears**:
+  - Check that the UI sends `"explain": true`.
+  - Verify `llm_available()` returns `True` (env key loaded).
+  - Check console/logs for 401/429 from OpenAI.
+- **CSV load error** → check delimiter (`,`), encoding (`utf-8`), and column names.  
+- **CORS** → backend sets permissive CORS in dev; tighten for prod as needed.
+
+---
+
+## Roadmap / Future Work
+
+- ✨ Switch from TF‑IDF to **OpenAI text embeddings** (`text-embedding-3-small`) + ANN index.  
+- 👥 Add collaborative filtering (implicit feedback) for personalization.  
+- 🌐 Multilingual support (Polish/Turkish/English).  
+- 🧪 A/B testing of scoring weights, automated tuning.  
+- 🔐 Auth + saved profiles; opt-in telemetry for offline evaluation.  
+- 📊 Offline evaluation notebook against held-out “similar perfume” pairs.
+
+---
+
+## Author
+
+**Selim Dalçiçek** — Polish-Japanese Academy of Information Technology (PJATK)  
+Aspiring Machine Learning Engineer | Data Science Enthusiast · Warsaw, Poland
+
+---
+
+## License
+
+This project is released under the **MIT License**. Feel free to use and adapt with attribution.

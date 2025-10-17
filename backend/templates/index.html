@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Perfume Recommender</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="/static/style.css?v=1"/>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- HEADER -->
+    <header>
+      <h1>Perfume Recommender</h1>
+      <span class="badge" id="llmBadge">AI reasoning: ready</span>
+    </header>
+
+    <!-- FILTER PANEL -->
+    <section class="panel">
+      <div class="grid cols-3">
+        <div>
+          <label>Liked perfumes (comma-separated)</label>
+          <input id="liked" placeholder="Dior Sauvage, Bleu de Chanel">
+        </div>
+        <div>
+          <label>Preferred accords / notes</label>
+          <input id="notes" placeholder="citrus, woody, vanilla">
+        </div>
+        <div>
+          <label>Gender</label>
+          <select id="gender">
+            <option value="">Any</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Unisex</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="grid cols-4">
+        <div>
+          <label>Price min (PLN)</label>
+          <input id="priceMin" type="number" min="0" placeholder="200">
+        </div>
+        <div>
+          <label>Price max (PLN)</label>
+          <input id="priceMax" type="number" min="0" placeholder="800">
+        </div>
+        <div>
+          <label>Minimum rating (0–5)</label>
+          <input id="ratingMin" type="number" min="0" max="5" step="0.1" value="0">
+        </div>
+        <div>
+          <label>Minimum rating count</label>
+          <input id="ratingCountMin" type="number" min="0" step="10" value="0">
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="grid cols-4">
+        <div>
+          <label>Minimum longevity (1–5)</label>
+          <input id="longevityMin" type="number" min="0" max="5" step="1" value="0">
+        </div>
+        <div>
+          <label>Minimum sillage (1–5)</label>
+          <input id="sillageMin" type="number" min="0" max="5" step="1" value="0">
+        </div>
+        <div>
+          <label>Top K results</label>
+          <input id="k" type="number" min="1" max="20" value="8">
+        </div>
+        <div class="row" style="align-items:center;">
+          <input id="explain" type="checkbox" checked style="width:auto">
+          <label for="explain" style="margin:0">Include AI reasoning</label>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="footer-row">
+        <div class="chips" id="useCaseChips">
+          <span class="chip active" data-tag="office">office</span>
+          <span class="chip" data-tag="date">date</span>
+          <span class="chip active" data-tag="summer">summer</span>
+          <span class="chip" data-tag="winter">winter</span>
+        </div>
+        <div class="right">
+          <button class="btn" id="go">Get recommendations</button>
+          <span class="error" id="error"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="results" id="results" aria-live="polite"></section>
+
+  </div>
+
+  <script src="/static/app.js?v=9"></script>
+</body>
+</html>

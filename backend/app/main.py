@@ -1,105 +1,238 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import List, Optional
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import List, Optional
 import pandas as pd
+import os
 
+# Local modules
 from .vectorstore import SimpleStore
-from .recommender import accords_set, usecase_score, final_score
+from .recommender import accords_set, usecase_score
 
-app = FastAPI(title="Perfume Recommender", version="0.2.0")
-DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "perfumes.csv"
+# Optional: GenAI LLM explanations
+try:
+    from .providers import llm_available, llm_explain
+except Exception:
+    def llm_available() -> bool: return False
+    def llm_explain(*args, **kwargs): return []
 
-# globals (built at startup)
+# --- Safety caps (prevent overuse) ---
+MAX_K = int(os.getenv("MAX_K", "10"))
+MAX_LLM_EXPLAINS = int(os.getenv("MAX_LLM_EXPLAINS", "5"))
+
+# --- FastAPI setup ---
+app = FastAPI(title="Perfume Recommender", version="0.5.0")
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+DATA_PATH = BASE_DIR / "data" / "perfumes.csv"
+
 DF: pd.DataFrame = pd.DataFrame()
-STORE: SimpleStore = None  # type: ignore
+STORE: Optional[SimpleStore] = None
 
-def load_df():
+
+# === Load dataset ===
+def load_df() -> pd.DataFrame:
     if DATA_PATH.exists():
         try:
-            return pd.read_csv(DATA_PATH)
+            df = pd.read_csv(DATA_PATH)
+            numeric_cols = [
+                "price_min", "price_max",
+                "longevity", "sillage",
+                "rating_value", "rating_count"
+            ]
+            for c in numeric_cols:
+                if c in df.columns:
+                    df[c] = pd.to_numeric(df[c], errors="coerce")
+            for c in ["brand", "name", "gender", "main_accords", "description", "url"]:
+                if c in df.columns:
+                    df[c] = df[c].fillna("")
+            return df
         except Exception as e:
-            print("Failed to read perfumes.csv:", e)
+            print("⚠️ Failed to load perfumes.csv:", e)
     return pd.DataFrame()
 
+
+# === Request schema ===
 class RecommendRequest(BaseModel):
     liked: Optional[List[str]] = None
-    use_cases: Optional[List[str]] = None         # e.g. ["office","summer"]
-    preferred_notes: Optional[List[str]] = None   # e.g. ["citrus","woody"]
+    preferred_notes: Optional[List[str]] = None
+    use_cases: Optional[List[str]] = None
     price_min: Optional[float] = None
     price_max: Optional[float] = None
-    k: int = 8
+    rating_min: Optional[float] = 0.0
+    rating_count_min: Optional[int] = 0
+    longevity_min: Optional[int] = 0
+    sillage_min: Optional[int] = 0
+    gender: Optional[str] = None
+    k: int = Field(8, ge=1, le=10)   # <= 10
+    explain: Optional[bool] = False
 
+
+# === Startup event ===
 @app.on_event("startup")
 def _startup():
     global DF, STORE
     DF = load_df()
     STORE = SimpleStore(DF) if len(DF) else None
-    print(f"Loaded catalog: {len(DF)} items")
+    print(f"✅ Loaded catalog: {len(DF)} perfumes")
+
+
+@app.get("/")
+def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/api/health")
 def health():
     return {"ok": True, "catalog_size": int(len(DF))}
 
+
+# === Scoring helper ===
+def _final_score(content_sim: float,
+                 usecase: float,
+                 longevity: float,
+                 rating_value: float,
+                 rating_count: float) -> float:
+    """Composite weighted score."""
+    rating_norm = max(min(rating_value / 5.0, 1.0), 0.0)
+    count_norm = min(max(rating_count, 0.0) / 2000.0, 1.0)
+    longevity_norm = max(min(longevity / 5.0, 1.0), 0.0)
+    return (
+        0.40 * float(content_sim)
+        + 0.15 * float(usecase)
+        + 0.15 * float(longevity_norm)
+        + 0.20 * float(rating_norm)
+        + 0.10 * float(count_norm)
+    )
+
+
+# === Main recommendation route ===
 @app.post("/api/recommend")
 def recommend(req: RecommendRequest):
-    liked = req.liked or []
-    use_cases = req.use_cases or []
-    preferred_notes = req.preferred_notes or []
-
     if STORE is None or DF.empty:
-        return {"results": [], "message": "Catalog is empty."}
+        return {"results": [], "message": "Catalog is empty.", "llm_used": False}
 
-    # Build a query from liked names + preferred notes
-    liked_text = " ".join(liked)
-    notes_text = " ".join(preferred_notes)
-    query = (liked_text + " " + notes_text).strip() or "fresh versatile office citrus"
+    # --- Apply safety limits ---
+    k = min(int(req.k or 8), MAX_K)
+    if k > MAX_LLM_EXPLAINS:
+        req.explain = False  # disable AI reasoning if asking for too many results
 
-    # Base similarity
-    sims = STORE.query_text(query)
+    liked = req.liked or []
+    preferred_notes = req.preferred_notes or []
+    use_cases = req.use_cases or []
 
-    # Filter by price; exclude liked items
+    # --- Build semantic query ---
+    query_text = " ".join(liked + preferred_notes).strip() or "fresh versatile office citrus"
+    sims = STORE.query_text(query_text)
+
     candidates = DF.copy()
+
+    # --- Apply filters ---
     if req.price_min is not None:
         candidates = candidates[candidates["price_min"] >= req.price_min]
     if req.price_max is not None:
         candidates = candidates[candidates["price_max"] <= req.price_max]
+    if req.rating_min:
+        candidates = candidates[candidates["rating_value"] >= req.rating_min]
+    if req.rating_count_min:
+        candidates = candidates[candidates["rating_count"] >= req.rating_count_min]
+    if req.longevity_min:
+        candidates = candidates[candidates["longevity"] >= req.longevity_min]
+    if req.sillage_min:
+        candidates = candidates[candidates["sillage"] >= req.sillage_min]
+    if req.gender and req.gender.lower() not in ("any", "all", "none"):
+        candidates = candidates[candidates["gender"].str.lower() == req.gender.lower()]
     if liked:
-        candidates = candidates[~candidates["name"].isin(liked)]
+        candidates = candidates[~candidates["name"].str.lower().isin([s.lower() for s in liked])]
 
-    # Scores
+    if candidates.empty:
+        return {"results": [], "message": "No matches after filters.", "llm_used": False}
+
+    # --- Compute scores ---
     uc_scores = []
-    lon_scores = []
     for _, row in candidates.iterrows():
         uc_scores.append(usecase_score(accords_set(row), use_cases))
-        lon = (float(row.get("longevity", 3)) + float(row.get("sillage", 3))) / 10.0
-        lon_scores.append(lon)
+    content_sim = sims[candidates.index]
+
+    scores = []
+    for (idx, row), uc, cs in zip(candidates.iterrows(), uc_scores, content_sim):
+        scores.append(_final_score(
+            content_sim=cs,
+            usecase=uc,
+            longevity=float(row.get("longevity", 3) or 3),
+            rating_value=float(row.get("rating_value", 0) or 0),
+            rating_count=float(row.get("rating_count", 0) or 0),
+        ))
 
     candidates = candidates.assign(
-        content_sim=sims[candidates.index],
+        content_sim=content_sim,
         usecase=uc_scores,
-        longevity=lon_scores
-    )
-    candidates["score"] = candidates.apply(
-        lambda r: final_score(r["content_sim"], r["usecase"], r["longevity"]), axis=1
+        score=scores
     )
 
-    topk = candidates.sort_values("score", ascending=False).head(req.k)
+    topk = candidates.sort_values("score", ascending=False).head(k)
 
-    def why(row):
+    # --- Baseline reasoning ---
+    def baseline_why(row) -> str:
         bits = []
-        if row["content_sim"] > 0.3: bits.append("similar scent profile to your picks")
-        if row["usecase"] > 0.6: bits.append("fits your selected use-cases")
-        if row["longevity"] > 0.6: bits.append("good longevity/sillage")
+        if row["content_sim"] > 0.3: bits.append("matches your scent profile")
+        if row["usecase"] > 0.6: bits.append("fits your use-cases")
+        if row["longevity"] >= 4: bits.append("long-lasting performance")
+        if row["rating_value"] >= 4.2 and row["rating_count"] >= 200:
+            bits.append("strong community ratings")
         return "; ".join(bits) or "balanced match"
 
-    results = [{
-        "brand": row["brand"],
-        "name": row["name"],
-        "score": round(float(row["score"]), 3),
-        "price_range": [row.get("price_min"), row.get("price_max")],
-        "accords": (row.get("main_accords") or "").split("|"),
-        "why": why(row)
-    } for _, row in topk.iterrows()]
+    results = []
+    for _, row in topk.iterrows():
+        results.append({
+            "brand": row["brand"],
+            "name": row["name"],
+            "gender": row.get("gender", ""),
+            "price_range": [int(row.get("price_min", 0)), int(row.get("price_max", 0))],
+            "accords": (row.get("main_accords") or "").split("|"),
+            "longevity": int(row.get("longevity", 0)),
+            "sillage": int(row.get("sillage", 0)),
+            "rating_value": float(row.get("rating_value", 0)),
+            "rating_count": int(row.get("rating_count", 0)),
+            "url": row.get("url", ""),
+            "description": row.get("description", ""),
+            "score": round(float(row["score"]), 3),
+            "why": baseline_why(row),
+        })
 
-    return {"results": results}
+    # --- LLM reasoning (limited to first MAX_LLM_EXPLAINS) ---
+    llm_used = False
+    if getattr(req, "explain", False) and llm_available() and results:
+        explain_slice = results[:MAX_LLM_EXPLAINS]
+        context = {
+            "liked": liked,
+            "use_cases": use_cases,
+            "preferred_notes": preferred_notes,
+            "budget": f"{req.price_min}–{req.price_max} PLN"
+                       if (req.price_min or req.price_max) else "unspecified",
+        }
+        ai_texts = llm_explain(context, explain_slice)
+        if any(ai_texts):
+            llm_used = True
+            for i, txt in enumerate(ai_texts):
+                if txt and i < len(results):
+                    results[i]["ai_why"] = txt
+
+    return {"results": results, "llm_used": llm_used}

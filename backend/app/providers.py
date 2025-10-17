@@ -1,14 +1,15 @@
 import os, json, httpx
 from typing import List, Dict, Any
 
-# read env at import-time (safe because main.py calls load_dotenv first)
-PROVIDER = os.getenv("PROVIDER", "openai").lower()
-LLM_KEY = os.getenv("LLM_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
-OPENAI_BASE = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+# Read env at import-time (main.py already calls load_dotenv)
+# Accept both naming conventions to avoid silent "unavailable" issues
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY") or ""
+MODEL = os.getenv("OPENAI_MODEL") or os.getenv("LLM_MODEL") or "gpt-4o-mini"
+OPENAI_BASE = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
 
 def llm_available() -> bool:
-    return bool(LLM_KEY)
+    """Return True if a usable API key is present."""
+    return bool(OPENAI_API_KEY)
 
 def build_prompt(context: Dict[str, Any], candidates: List[Dict[str, Any]]) -> str:
     liked = ", ".join(context.get("liked") or [])
@@ -33,7 +34,8 @@ def build_prompt(context: Dict[str, Any], candidates: List[Dict[str, Any]]) -> s
         accords = ", ".join(c.get("accords") or [])
         price_min, price_max = (c.get("price_range") or [None, None])
         lines.append(
-            f"{i}. {c.get('brand','')} {c.get('name','')} | accords: {accords} | price_range: {price_min}–{price_max} PLN"
+            f"{i}. {c.get('brand','')} {c.get('name','')} | accords: {accords} | "
+            f"price_range: {price_min}–{price_max} PLN"
         )
     lines += [
         "",
@@ -42,11 +44,15 @@ def build_prompt(context: Dict[str, Any], candidates: List[Dict[str, Any]]) -> s
     return "\n".join(lines)
 
 def _openai_chat(prompt: str) -> str:
-    if not LLM_KEY:
+    """Call OpenAI chat completions and return the assistant content (JSON string)."""
+    if not OPENAI_API_KEY:
         raise RuntimeError("LLM key missing")
-    headers = {"Authorization": f"Bearer {LLM_KEY}"}
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
     payload = {
-        "model": LLM_MODEL,
+        "model": MODEL,
         "messages": [
             {"role": "system", "content": "You are a concise expert on fragrances."},
             {"role": "user", "content": prompt}
@@ -58,25 +64,35 @@ def _openai_chat(prompt: str) -> str:
         r = client.post(f"{OPENAI_BASE}/chat/completions", headers=headers, json=payload)
         r.raise_for_status()
         data = r.json()
-        return data["choices"][0]["message"]["content"]
+        # Defensive: ensure expected shape
+        choice = (data.get("choices") or [{}])[0]
+        message = choice.get("message") or {}
+        content = message.get("content") or ""
+        return content
 
 def llm_explain(context: Dict[str, Any], candidates: List[Dict[str, Any]]) -> List[str]:
+    """Return up to len(candidates) short explanations (bulleted) aligned to candidates order."""
     if not llm_available() or not candidates:
         return []
     try:
-        raw = _openai_chat(build_prompt(context, candidates))
+        # Build prompt for only the slice main.py asked for
+        prompt = build_prompt(context, candidates)
+        raw = _openai_chat(prompt)
         obj = json.loads(raw)
         items = obj.get("list") if isinstance(obj, dict) else None
         if not isinstance(items, list):
             return []
-        outs = []
+
+        outs: List[str] = []
         for i in range(len(candidates)):
             try:
                 bullets = items[i].get("bullets", [])
-                outs.append("\n".join(f"• {b.strip()}" for b in bullets[:2] if str(b).strip()))
+                # keep max 2 bullets, each trimmed
+                outs.append("\n".join(f"• {str(b).strip()}" for b in bullets[:2] if str(b).strip()))
             except Exception:
                 outs.append("")
         return outs
     except Exception as e:
+        # Don't crash the request if LLM fails
         print("LLM error:", repr(e))
         return []

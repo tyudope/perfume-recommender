@@ -1,48 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>How to Use – Perfume Recommender</title>
-  <link rel="stylesheet" href="/static/style.css?v=3"/>
+  <meta charset="utf-8" />
+  <title>How to use – Perfume Recommender</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- absolute path so FastAPI static mount always works -->
+  <link rel="stylesheet" href="/static/style.css?v=intro1" />
 </head>
 <body>
-  <div class="container">
-    <h1 class="title">✨ How to Use the Perfume Recommender</h1>
-    <p class="subtitle">Discover new scents that match your style, occasions, and performance preferences.</p>
+  <div class="wrap" style="padding-top:16px;">
+    <header class="header" style="margin-bottom:12px;">
+      <h1>How to use</h1>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="/">← Back to recommender</a>
+        <a class="btn btn-secondary" href="/about">About the algorithm</a>
+      </div>
+    </header>
 
-    <h2>1) Tell us what you like</h2>
-    <ul>
-      <li>Enter perfumes you enjoy (e.g., <b>Bleu de Chanel</b>, <b>Dior Sauvage</b>).</li>
-      <li>Optionally add keywords for accords/notes (e.g., <b>citrus</b>, <b>woody</b>, <b>vanilla</b>).</li>
-      <li>Pick use-cases (office, summer, date, etc.).</li>
-    </ul>
+    <!-- Make sure .container exists; CSS targets this -->
+    <div class="container">
+      <div class="title">Perfume Recommender</div>
+      <div class="subtitle">A quick guide to getting great suggestions.</div>
 
-    <h2>2) Set your filters</h2>
-    <ul>
-      <li><b>Price range (PLN)</b> — budget comfort zone.</li>
-      <li><b>Rating</b> & <b>Rating count</b> — community approval.</li>
-      <li><b>Longevity</b> & <b>Sillage</b> — performance (1–5).</li>
-      <li><b>Gender</b> — pick Male/Female or leave as Any.</li>
-    </ul>
+      <h2>1) Tell us your taste</h2>
+      <ul>
+        <li><b>Liked perfumes</b>: add 1–3 you enjoy (e.g., Dior Sauvage, Bleu de Chanel).</li>
+        <li><b>Preferred notes</b>: e.g., citrus, woody, vanilla.</li>
+        <li><b>Use-cases</b>: toggle chips like office / date / summer / winter.</li>
+      </ul>
 
-    <h2>3) Get recommendations</h2>
-    <ul>
-      <li>Click <b>Get recommendations</b>.</li>
-      <li>Each card shows brand/name, accords, price range, longevity/sillage, rating, and a link to Fragrantica.</li>
-      <li>Optional 💡 <b>AI reasoning</b> adds a short explanation (we cap this for cost control).</li>
-    </ul>
+      <h2>2) Refine with filters</h2>
+      <ul>
+        <li><b>Price range</b> in PLN.</li>
+        <li><b>Rating &amp; count</b>: minimum quality and popularity thresholds.</li>
+        <li><b>Longevity / Sillage</b>: higher = stronger/longer lasting.</li>
+        <li><b>Gender</b>: Male, Female, or Unisex.</li>
+      </ul>
 
-    <h2>Tips</h2>
-    <ul>
-      <li>Start broad, then tighten filters.</li>
-      <li>For summer freshies, try: notes = <b>citrus, aquatic</b>, use-case = <b>summer</b>.</li>
-      <li>For date night, try: notes = <b>vanilla, amber</b>, longevity ≥ <b>3</b>, rating ≥ <b>4.2</b>.</li>
-    </ul>
+      <h2>3) (Optional) AI explanations</h2>
+      <ul>
+        <li>Check <b>Include AI reasoning</b> to see a small expert summary for top results.</li>
+        <li>We cap the number of items explained per request to control latency/cost.</li>
+      </ul>
 
-    <div style="margin-top:28px;">
-      <a class="btn" href="/">← Back to Recommender</a>
-      <a class="btn btn-secondary" href="/about">Learn the algorithm →</a>
+      <h2>Tips</h2>
+      <ul>
+        <li>Start broad, then narrow down with filters.</li>
+        <li>Try mixing one liked perfume + 2 notes for best semantic matches.</li>
+        <li>Use the Fragrantica link to deep-dive any pick.</li>
+      </ul>
+
+      <a class="btn" href="/">Start recommending</a>
     </div>
   </div>
 </body>

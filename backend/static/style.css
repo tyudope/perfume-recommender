@@ -264,3 +264,68 @@ input:focus, select:focus {
   input, select { font-size: 14px; }
   .btn { width: 100%; }
 }
+
+/* === Intro/About Pages Styling === */
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+
+.container .title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.container .subtitle {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.container h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 28px;
+  margin-bottom: 10px;
+}
+
+.container ul {
+  list-style: disc;
+  padding-left: 22px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.container ul li {
+  margin-bottom: 6px;
+}
+
+.container pre {
+  font-family: "JetBrains Mono", monospace;
+  background: #fffdf8;
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: 12px;
+  overflow-x: auto;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #333;
+}
+
+.container a.btn {
+  margin-right: 10px;
+  margin-top: 20px;
+}
+
+.container a.btn-secondary {
+  border-color: var(--border);
+}

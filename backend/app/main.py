@@ -27,7 +27,7 @@ MAX_K = int(os.getenv("MAX_K", "10"))
 MAX_LLM_EXPLAINS = int(os.getenv("MAX_LLM_EXPLAINS", "5"))
 
 # --- FastAPI setup ---
-app = FastAPI(title="Perfume Recommender", version="0.5.0")
+app = FastAPI(title="Perfume Recommender", version="0.5.1")
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -98,6 +98,13 @@ def _startup():
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/intro")
+def intro(request: Request):
+    return templates.TemplateResponse("intro.html", {"request": request})
+
+@app.get("/about")
+def about(request: Request):
+    return templates.TemplateResponse("about.html", {"request": request})
 
 @app.get("/api/health")
 def health():
@@ -129,10 +136,9 @@ def recommend(req: RecommendRequest):
     if STORE is None or DF.empty:
         return {"results": [], "message": "Catalog is empty.", "llm_used": False}
 
-    # --- Apply safety limits ---
+    # --- Apply safety limits (do NOT disable explain; just cap how many we explain) ---
     k = min(int(req.k or 8), MAX_K)
-    if k > MAX_LLM_EXPLAINS:
-        req.explain = False  # disable AI reasoning if asking for too many results
+    explain_n = min(MAX_LLM_EXPLAINS, k)
 
     liked = req.liked or []
     preferred_notes = req.preferred_notes or []
@@ -194,9 +200,15 @@ def recommend(req: RecommendRequest):
         bits = []
         if row["content_sim"] > 0.3: bits.append("matches your scent profile")
         if row["usecase"] > 0.6: bits.append("fits your use-cases")
-        if row["longevity"] >= 4: bits.append("long-lasting performance")
-        if row["rating_value"] >= 4.2 and row["rating_count"] >= 200:
-            bits.append("strong community ratings")
+        try:
+            if float(row.get("longevity", 0)) >= 4: bits.append("long-lasting performance")
+        except Exception:
+            pass
+        try:
+            if float(row.get("rating_value", 0)) >= 4.2 and float(row.get("rating_count", 0)) >= 200:
+                bits.append("strong community ratings")
+        except Exception:
+            pass
         return "; ".join(bits) or "balanced match"
 
     results = []
@@ -205,22 +217,22 @@ def recommend(req: RecommendRequest):
             "brand": row["brand"],
             "name": row["name"],
             "gender": row.get("gender", ""),
-            "price_range": [int(row.get("price_min", 0)), int(row.get("price_max", 0))],
+            "price_range": [int(row.get("price_min", 0) or 0), int(row.get("price_max", 0) or 0)],
             "accords": (row.get("main_accords") or "").split("|"),
-            "longevity": int(row.get("longevity", 0)),
-            "sillage": int(row.get("sillage", 0)),
-            "rating_value": float(row.get("rating_value", 0)),
-            "rating_count": int(row.get("rating_count", 0)),
+            "longevity": float(row.get("longevity", 0) or 0),
+            "sillage": float(row.get("sillage", 0) or 0),
+            "rating_value": float(row.get("rating_value", 0) or 0),
+            "rating_count": int(row.get("rating_count", 0) or 0),
             "url": row.get("url", ""),
             "description": row.get("description", ""),
             "score": round(float(row["score"]), 3),
             "why": baseline_why(row),
         })
 
-    # --- LLM reasoning (limited to first MAX_LLM_EXPLAINS) ---
+    # --- LLM reasoning (explain up to explain_n results) ---
     llm_used = False
     if getattr(req, "explain", False) and llm_available() and results:
-        explain_slice = results[:MAX_LLM_EXPLAINS]
+        explain_slice = results[:explain_n]
         context = {
             "liked": liked,
             "use_cases": use_cases,
@@ -230,9 +242,9 @@ def recommend(req: RecommendRequest):
         }
         ai_texts = llm_explain(context, explain_slice)
         if any(ai_texts):
-            llm_used = True
             for i, txt in enumerate(ai_texts):
                 if txt and i < len(results):
                     results[i]["ai_why"] = txt
+            llm_used = True
 
     return {"results": results, "llm_used": llm_used}

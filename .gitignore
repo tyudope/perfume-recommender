@@ -20,7 +20,7 @@ env.bak/
 venv.bak/
 
 # Environment variables / secrets
-.env
+backend/.env
 .env.*
 
 # Build / packaging

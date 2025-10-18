@@ -1,7 +1,13 @@
-# 🌸 Perfume Recommender — AI/ML Project (Detailed, Recruiter-Friendly README)
+# 🌸 Perfume Recommender — AI/ML Project 
 
+Find your next signature scent by describing what you like (e.g., *“Dior Sauvage, citrus, summer, office”*), and get smart recommendations with clear explanations.
+
+**Live demo:** https://perfume-recommender-vj81.onrender.com
+
+> Built for speed and clarity: FastAPI backend, semantic similarity + rule filters, optional LLM “why” reasoning, clean beige UI.
 > A hybrid recommendation system that blends **semantic retrieval**, **heuristic ranking**, and **GenAI explanations** to suggest fragrances based on user taste, use-cases, and constraints. Built with **FastAPI + Pandas + Vanilla JS**.
 
+---
 ---
 
 ## Table of Contents
@@ -266,25 +272,28 @@ MAX_LLM_EXPLAINS=5
 ## Local Development & Running
 
 ```bash
-# 1) Clone
+## 🚀 Quickstart (Local)
+Requirements: Python 3.9+
+
+
 git clone https://github.com/tyudope/perfume-recommender.git
 cd perfume-recommender
 
-# 2) Create virtual env & activate
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# create & activate venv (optional)
+python3 -m venv .venv && source .venv/bin/activate
 
-# 3) Install backend deps
+# install backend deps
 pip install -r backend/requirements.txt
 
-# 4) Create backend/.env (see above)
+# set environment
+cp backend/.env.example backend/.env
+# edit backend/.env and fill LLM_API_KEY, adjust limits if you want
 
-# 5) Run API
-cd backend
-uvicorn app.main:app --reload
+# run
+uvicorn --app-dir backend app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 6) Open UI
-# http://127.0.0.1:8000
+
+Open http://localhost:8000
 ```
 
 **Dev Tips**

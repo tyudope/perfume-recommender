@@ -12,6 +12,15 @@ from typing import List, Optional
 import pandas as pd
 import os
 
+#Security
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
+
+
+
+
 # Local modules
 from .vectorstore import SimpleStore
 from .recommender import accords_set, usecase_score
@@ -36,6 +45,17 @@ app = FastAPI(title="Perfume Recommender", version="0.5.1")
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+# Initialize limiter
+limiter = Limiter(key_func=get_remote_address)
+
+# Register exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, lambda request, exc: JSONResponse(
+    status_code=429,
+    content={"detail": "Too many requests. Please try again later."}
+))
 
 app.add_middleware(
     CORSMiddleware,
@@ -177,6 +197,8 @@ def _final_score(content_sim: float,
 
 # === Main recommendation route ===
 @app.post("/api/recommend")
+
+
 def recommend(req: RecommendRequest, request: Request):
     if STORE is None or DF.empty:
         return {"results": [], "message": "Catalog is empty.", "llm_used": False}

@@ -235,14 +235,31 @@ MAX_LLM_EXPLAINS=5
 
 ---
 
-## Security, Secrets & Cost Controls
+## 🛡️ Security, Secrets & Cost Controls
 
-- **No keys in Git**: never commit `.env`. Keep a `.env.example` without secrets.  
-- **Server-side key usage**: the frontend never sees the API key; all LLM calls happen in `providers.py`.  
-- **Input validation**: Pydantic model `RecommendRequest` enforces types and sane bounds (e.g., `k ≤ MAX_K`).  
-- **Abuse controls (optional)**: You can add rate limiting (e.g., `slowapi`) or daily caps per-IP if hosting publicly.  
-- **Explain cap**: `MAX_LLM_EXPLAINS` prevents overly long/expensive AI calls.  
-- **Logging**: avoid logging PII or secrets; log only high-level events and errors.
+- **No API keys in Git**  
+  `.env` is ignored via `.gitignore`. Only `.env.example` (without real secrets) is versioned for reference.  
+
+- **Server-side key protection**  
+  The OpenAI API key is **only used inside [`providers.py`](backend/app/providers.py)** — it is never exposed to the frontend or browser requests. All LLM calls happen securely on the backend.  
+
+- **Input validation**  
+  The [`RecommendRequest`](backend/app/main.py) Pydantic model enforces strict type checking and reasonable bounds (e.g., `k ≤ MAX_K`, price filters ≥ 0).  
+
+- **Daily IP-based quota**  
+  Each client IP is limited to a configurable number of AI reasoning requests per day (`LLM_DAILY_LIMIT`), with an automatic 24-hour reset. This prevents abuse and controls API costs.  
+
+- **Explain cap per request**  
+  `MAX_LLM_EXPLAINS` ensures each AI reasoning call only explains a limited number of perfumes, protecting per-request costs and response time.  
+
+- **Frontend safeguards**  
+  The UI prevents excessive LLM usage and **visually indicates** when the AI reasoning is capped or near limit (red badges + smooth fade-in warning banner).  
+
+- **Abuse protection (optional)**  
+  Additional middleware such as `slowapi` or Redis-backed rate limiting can be added if deploying publicly or at scale.  
+
+- **Safe logging**  
+  Logs capture only high-level actions and errors — never personal data, API keys, or full request bodies.
 
 ---
 

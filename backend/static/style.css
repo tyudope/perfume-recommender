@@ -418,41 +418,41 @@ input:focus, select:focus {
   min-width: 0;              /* prevents overflow into the next column */
   box-sizing: border-box;
 }
-
-/* ====== Footer ====== */
-.site-footer {
-  margin-top: 40px;
-  padding: 18px 0;
-  background-color: #f5f0e6; /* soft beige tone */
+/* ===== FOOTER ===== */
+.footer {
   text-align: center;
-  font-size: 14px;
-  color: #444;
-  border-top: 1px solid #ddd;
+  margin-top: 40px;
+  padding: 15px 0;
+  font-size: 0.9rem;
+  color: #4a3f38;
+  background-color: #f8f5f2;
+  border-top: 1px solid #e1d8cc;
 }
 
-.site-footer a {
-  color: #5a4b37; /* warm brown tone */
+.footer a {
+  color: #a67842;
   text-decoration: none;
   font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.site-footer a:hover {
-  color: #8a7358;
+.footer a:hover {
   text-decoration: underline;
 }
 
+/* GitHub logo beside text */
 .github-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;          /* smaller width */
+  height: 16px;         /* smaller height */
   vertical-align: middle;
-  filter: brightness(0.2);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  display: inline-block;
+  margin-left: 6px;
+  margin-right: 4px;
+  opacity: 0.75;
+  filter: invert(28%) sepia(11%) saturate(450%) hue-rotate(10deg) brightness(95%);
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
 
 .github-link:hover .github-icon {
-  transform: rotate(10deg) scale(1.1);
-  filter: brightness(0.4);
+  opacity: 1;
+  transform: scale(1.05);
 }

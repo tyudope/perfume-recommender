@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+.git
+.gitignore
+
+# local env
+perfume-recommender/backend/.env

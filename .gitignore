@@ -73,3 +73,7 @@ temp/
 *.tmp
 *.swp
 *.swo
+
+# Sensitive
+*.env
+perfume-recommender/backend/.env

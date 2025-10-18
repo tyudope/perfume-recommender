@@ -47,7 +47,7 @@ This project runs inside a Docker container and is hosted on Render for simplici
 
 ---
 
-### 🚀 Result
+###  Result
 This deployment pipeline makes the **Perfume Recommender**:
 - Fully reproducible (same code → same container → same behavior).
 - Secure (keys and limits managed through environment variables).

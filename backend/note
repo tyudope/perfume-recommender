@@ -1,0 +1,20 @@
+uvicorn --app-dir backend app.main:app --reload --host 0.0.0.0 --port 8001
+starting fastAPI app
+
+uvicorn --app-dir perfume-recommender/backend app.main:app --reload --host 0.0.0.0 --port 8001
+
+
+
+# Build image.
+docker build -t perfume-recommender:latest .
+
+# Run container (with your local env)
+docker build -t perfume-recommender:latest .
+docker run --rm -p 8000:8000 \
+  -e LLM_API_KEY=your_real_key \
+  -e OPENAI_MODEL=gpt-4o-mini \
+  -e MAX_K=10 -e MAX_LLM_EXPLAINS=5 -e LLM_DAILY_LIMIT=50 \
+  perfume-recommender:latest
+
+
+docker stop $(docker ps -q)

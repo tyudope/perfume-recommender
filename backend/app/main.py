@@ -1,5 +1,6 @@
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from fastapi import FastAPI, Request
@@ -25,6 +26,9 @@ except Exception:
 # --- Safety caps (prevent overuse) ---
 MAX_K = int(os.getenv("MAX_K", "10"))
 MAX_LLM_EXPLAINS = int(os.getenv("MAX_LLM_EXPLAINS", "5"))
+LLM_DAILY_LIMIT = int(os.getenv("LLM_DAILY_LIMIT", "10"))
+# in-memory usage tracker : ip[ -> {"count":int, "reset_at" : datetime}
+_LLM_USAGE = {}
 
 # --- FastAPI setup ---
 app = FastAPI(title="Perfume Recommender", version="0.5.1")
@@ -40,6 +44,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def _client_ip(request: Request) -> str:
+    """Best-effort client IP, works behind proxies too."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    xri = request.headers.get("x-real-ip")
+    if xri:
+        return xri.strip()
+    return request.client.host if request.client else "unknown"
+
+def _llm_reset_if_needed(rec: dict, now: datetime) -> None:
+    if now >= rec["reset_at"]:
+        rec["count"] = 0
+        rec["reset_at"] = now + timedelta(hours=24)
+
+def _llm_take(ip: str, tokens: int, now: datetime) -> tuple[bool, int]:
+    """
+    Attempt to consume `tokens` from the user's daily budget.
+    Returns (allowed: bool, remaining_after: int).
+    """
+    if tokens <= 0:
+        rec = _LLM_USAGE.get(ip)
+        if not rec:
+            _LLM_USAGE[ip] = {"count": 0, "reset_at": now + timedelta(hours=24)}
+            return True, LLM_DAILY_LIMIT
+        _llm_reset_if_needed(rec, now)
+        return True, max(0, LLM_DAILY_LIMIT - rec["count"])
+
+    rec = _LLM_USAGE.get(ip)
+    if not rec:
+        rec = {"count": 0, "reset_at": now + timedelta(hours=24)}
+        _LLM_USAGE[ip] = rec
+    _llm_reset_if_needed(rec, now)
+
+    if rec["count"] + tokens <= LLM_DAILY_LIMIT:
+        rec["count"] += tokens
+        return True, LLM_DAILY_LIMIT - rec["count"]
+    else:
+        # Not enough budget to take all tokens
+        return False, max(0, LLM_DAILY_LIMIT - rec["count"])
 
 DATA_PATH = BASE_DIR / "data" / "perfumes.csv"
 
@@ -132,7 +177,7 @@ def _final_score(content_sim: float,
 
 # === Main recommendation route ===
 @app.post("/api/recommend")
-def recommend(req: RecommendRequest):
+def recommend(req: RecommendRequest, request: Request):
     if STORE is None or DF.empty:
         return {"results": [], "message": "Catalog is empty.", "llm_used": False}
 
@@ -229,22 +274,44 @@ def recommend(req: RecommendRequest):
             "why": baseline_why(row),
         })
 
-    # --- LLM reasoning (explain up to explain_n results) ---
+    # --- LLM reasoning (up to explain_n items) with DAILY IP QUOTA ---
     llm_used = False
-    if getattr(req, "explain", False) and llm_available() and results:
-        explain_slice = results[:explain_n]
-        context = {
-            "liked": liked,
-            "use_cases": use_cases,
-            "preferred_notes": preferred_notes,
-            "budget": f"{req.price_min}–{req.price_max} PLN"
-                       if (req.price_min or req.price_max) else "unspecified",
-        }
-        ai_texts = llm_explain(context, explain_slice)
-        if any(ai_texts):
-            for i, txt in enumerate(ai_texts):
-                if txt and i < len(results):
-                    results[i]["ai_why"] = txt
-            llm_used = True
+    llm_limited = False
+    llm_remaining = None  # optional to show in UI
 
-    return {"results": results, "llm_used": llm_used}
+    if getattr(req, "explain", False) and llm_available() and results:
+        now = datetime.now(timezone.utc)
+        ip = _client_ip(request)
+
+        # We charge "tokens" equal to how many items we'll explain this request
+        tokens = min(explain_n, len(results))
+
+        allowed, remaining = _llm_take(ip, tokens, now)
+        llm_remaining = remaining
+
+        if allowed:
+            explain_slice = results[:tokens]
+            context = {
+                "liked": liked,
+                "use_cases": use_cases,
+                "preferred_notes": preferred_notes,
+                "budget": f"{req.price_min}–{req.price_max} PLN"
+                           if (req.price_min or req.price_max) else "unspecified",
+            }
+            ai_texts = llm_explain(context, explain_slice)
+            if any(ai_texts):
+                for i, txt in enumerate(ai_texts):
+                    if txt and i < len(results):
+                        results[i]["ai_why"] = txt
+                llm_used = True
+        else:
+            llm_limited = True
+    print("llm_used" , llm_used)
+    print("llm_limited" , llm_limited)
+    print("llm_remaining" , llm_remaining)
+    return {
+        "results": results,
+        "llm_used": llm_used,
+        "llm_limited": llm_limited,
+        "llm_remaining": llm_remaining,  # optional for UI
+    }

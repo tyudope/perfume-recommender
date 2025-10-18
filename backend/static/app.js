@@ -1,6 +1,67 @@
 console.log("Perfume recommender UI loaded.");
-
+// ensure notice & left badge start hidden
+document.getElementById("aiNotice")?.classList.add("hidden");
+document.getElementById("llmLeft")?.style && (document.getElementById("llmLeft").style.display = "none");
 const state = { use_cases: ["office", "summer"] };
+
+function setAiBadges({ show, left, limited, used }) {
+  const aiNotice = document.getElementById("aiNotice");
+  const llmLeftBadge = document.getElementById("llmLeft");
+  const llmBadge = document.getElementById("llmBadge");
+
+  // --- handle hiding when explain unchecked ---
+  if (!show) {
+    if (llmLeftBadge) llmLeftBadge.style.display = "none";
+    if (llmBadge) {
+      llmBadge.textContent = "AI reasoning: ready";
+      llmBadge.classList.remove("danger");
+    }
+    if (aiNotice) aiNotice.classList.add("hidden");
+    return;
+  }
+
+  // --- determine visual states ---
+  const danger = typeof left === "number" && left <= 5;
+  const capped = limited || (typeof left === "number" && left <= 0);
+
+  // --- update AI reasoning badge ---
+  if (llmBadge) {
+    if (capped) {
+      llmBadge.textContent = "AI reasoning: capped";
+      llmBadge.classList.add("danger");
+    } else if (danger) {
+      llmBadge.textContent = "AI reasoning: capped";
+      llmBadge.classList.add("danger");
+    } else if (used) {
+      llmBadge.textContent = "AI reasoning: used";
+      llmBadge.classList.remove("danger");
+    } else {
+      llmBadge.textContent = "AI reasoning: ready";
+      llmBadge.classList.remove("danger");
+    }
+  }
+
+  // --- update 'AI left' badge ---
+  if (typeof left === "number" && llmLeftBadge) {
+    llmLeftBadge.style.display = "inline-block";
+    llmLeftBadge.textContent = `AI left: ${left}`;
+    if (danger) llmLeftBadge.classList.add("danger");
+    else llmLeftBadge.classList.remove("danger");
+  }
+
+  // --- update AI notice ---
+  if (aiNotice) {
+    if (capped) {
+      aiNotice.classList.remove("hidden");
+      aiNotice.innerHTML = `<strong>No more AI explanations today.</strong> Recommendations still work; AI insights will resume after the daily reset.`;
+    } else if (danger) {
+      aiNotice.classList.remove("hidden");
+      aiNotice.innerHTML = `<strong>Heads up:</strong> Only ${left} AI explanations left today.`;
+    } else {
+      aiNotice.classList.add("hidden");
+    }
+  }
+}
 
 // --- Toggle chips for use cases ---
 document.querySelectorAll(".chip").forEach(btn => {
@@ -49,10 +110,13 @@ document.getElementById("go").addEventListener("click", async () => {
     explain: document.getElementById("explain").checked
   };
 
+  // before you start the try block
   const errorDiv = document.getElementById("error");
   const resultsDiv = document.getElementById("results");
+  const cardsDiv = document.getElementById("cards") || resultsDiv;
+
   errorDiv.textContent = "";
-  resultsDiv.innerHTML = "";
+  cardsDiv.innerHTML = "";  // ✅ clear old cards only
 
   try {
     console.log("Request:", body);
@@ -70,6 +134,60 @@ document.getElementById("go").addEventListener("click", async () => {
 
     const data = await res.json();
     console.log("Response:", data);
+    // === AI daily limit UI ===
+    const aiNotice = document.getElementById("aiNotice");
+    const llmLeftBadge = document.getElementById("llmLeft");
+    const llmBadge = document.getElementById("llmBadge");
+    const explainChecked = document.getElementById("explain").checked;
+
+    setAiBadges({
+      show: explainChecked,
+      left: data.llm_remaining,
+      limited: data.llm_limited === true,
+      used: data.llm_used === true
+    });
+
+    // update remaining counter
+    if (typeof data.llm_remaining === "number" && llmLeftBadge) {
+      llmLeftBadge.style.display = "inline-block";
+      llmLeftBadge.textContent = `AI left: ${data.llm_remaining}`;
+
+      // style tweaks when low / zero
+      if (data.llm_remaining <= 0) {
+        llmLeftBadge.classList.add("danger");
+      } else {
+        llmLeftBadge.classList.remove("danger");
+      }
+    }
+
+    // show/hide limit notice
+    const limited = data.llm_limited === true;
+    if (aiNotice) {
+      if (limited) {
+        aiNotice.classList.remove("hidden");
+        // Optional: sharpen text when hard limited
+        aiNotice.innerHTML = `<strong>No more AI explanations today.</strong> Recommendations still work; try AI insights again after the daily reset.`;
+      } else {
+        // show a gentle heads-up if very low (<= 5 left)
+        if (typeof data.llm_remaining === "number" && data.llm_remaining <= 5 && data.llm_remaining > 0) {
+          aiNotice.classList.remove("hidden");
+          aiNotice.innerHTML = `<strong>Heads up:</strong> Only ${data.llm_remaining} AI explanations left today.`;
+        } else {
+          aiNotice.classList.add("hidden");
+        }
+      }
+    }
+
+    // optional: reflect if AI was used this call
+    if (llmBadge) {
+      if (limited) {
+        llmBadge.textContent = "AI reasoning: capped";
+      } else if (data.llm_used) {
+        llmBadge.textContent = "AI reasoning: used";
+      } else {
+        llmBadge.textContent = "AI reasoning: ready";
+      }
+    }
 
     if (!data.results || !data.results.length) {
       resultsDiv.innerHTML = `<div class="muted">No results — try relaxing your filters.</div>`;
@@ -112,6 +230,7 @@ document.getElementById("go").addEventListener("click", async () => {
       `;
 
       resultsDiv.appendChild(card);
+      cardsDiv.appendChild(card);
     });
 
   } catch (err) {

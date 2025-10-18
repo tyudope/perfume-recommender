@@ -349,3 +349,72 @@ input:focus, select:focus {
 .container a.btn-secondary {
   border-color: var(--border);
 }
+
+
+/* Results grid */
+/* Results layout */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Card styling for consistent height + alignment */
+.card {
+  background: #fdfbf8;
+  border-radius: 12px;
+  padding: 1.4rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+/* Mobile / narrow screens: fall back to 1 column */
+@media (max-width: 980px) {
+  .results {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ensure cards stretch to the grid cell and don't enforce their own widths */
+.results .card {
+  width: 100%;
+  max-width: none;
+  margin: 5px;               /* grid handles spacing */
+}
+
+/* --- badge danger override (forces red) --- */
+.badge.danger {
+  background: #b3261e !important;   /* solid red */
+  color: #fff !important;            /* white text */
+  border-color: #b3261e !important;  /* match border to background */
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* --- FORCE a 2-col grid for results --- */
+.results {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+/* 1 column on narrow screens */
+@media (max-width: 980px) {
+  .results {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- RESET any legacy card sizing that breaks the grid --- */
+.results .card {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  min-width: 0;              /* prevents overflow into the next column */
+  box-sizing: border-box;
+}

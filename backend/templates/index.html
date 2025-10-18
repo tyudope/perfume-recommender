@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <title>Perfume Recommender</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <link rel="stylesheet" href="/static/style.css?v=1"/>
+  <link rel="stylesheet" href="/static/style.css?v=5" />
 </head>
 <body>
   <div class="wrap">
@@ -17,6 +17,7 @@
         <a href="/about" class="btn btn-secondary">About the algorithm</a>
       </div>
       <span class="badge" id="llmBadge">AI reasoning: ready</span>
+      <span class="badge" id="llmLeft" style="display:none;">AI left: 5</span>
     </header>
 
     <!-- FILTER PANEL -->
@@ -98,12 +99,14 @@
         </div>
       </div>
     </section>
+    <!-- RESULTS NOTICE -->
+    <!-- Place this OUTSIDE #results so it isn't cleared -->
+      <section class="results" id="results" aria-live="polite">
 
-    <!-- RESULTS -->
-    <section class="results" id="results" aria-live="polite"></section>
+</section>
 
   </div>
 
-  <script src="/static/app.js?v=9"></script>
+  <script src="/static/app.js?v=10"></script>
 </body>
 </html>

@@ -2,3 +2,7 @@ uvicorn --app-dir backend app.main:app --reload --host 0.0.0.0 --port 8001
 starting fastAPI app
 
 uvicorn --app-dir perfume-recommender/backend app.main:app --reload --host 0.0.0.0 --port 8001
+
+
+docker run --rm -p 8000:8000 \
+  --env-file perfume-recommender/backend/.env \

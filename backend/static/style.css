@@ -418,3 +418,41 @@ input:focus, select:focus {
   min-width: 0;              /* prevents overflow into the next column */
   box-sizing: border-box;
 }
+
+/* ====== Footer ====== */
+.site-footer {
+  margin-top: 40px;
+  padding: 18px 0;
+  background-color: #f5f0e6; /* soft beige tone */
+  text-align: center;
+  font-size: 14px;
+  color: #444;
+  border-top: 1px solid #ddd;
+}
+
+.site-footer a {
+  color: #5a4b37; /* warm brown tone */
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.site-footer a:hover {
+  color: #8a7358;
+  text-decoration: underline;
+}
+
+.github-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  filter: brightness(0.2);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.github-link:hover .github-icon {
+  transform: rotate(10deg) scale(1.1);
+  filter: brightness(0.4);
+}

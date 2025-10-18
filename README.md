@@ -1,3 +1,4 @@
+![Perfume Recommender Demo](assets/demo.gif)
 # 🧴 AI Perfume Recommender  
 ### Data-Driven & AI-Enhanced Fragrance Discovery  
 

@@ -18,7 +18,7 @@ Users can input favorite perfumes, scent notes, or occasions — and the system 
 - ⚙️ **Weighted composite scoring** of longevity, sillage, rating value, and count  
 - 💬 **AI reasoning** powered by GPT-4o for short, human-like explanations  
 
-Built with **FastAPI**, **Pandas**, and **OpenAI API**, the system is fully **Dockerized**, **deployed on Render**, and optimized for **512 MB memory**.  
+Built with **FastAPI 0.119.0**, **Pandas**, and **OpenAI API**, the system is fully **Dockerized**, **deployed on Render**, and optimized for **512 MB memory**.  
 It includes **SlowAPI rate-limiting**, **daily IP quotas**, and a **modern beige-themed UI** for a seamless experience.
 
 🌐 **Live Demo:** [perfume-recommender-vj81.onrender.com](https://perfume-recommender-vj81.onrender.com)

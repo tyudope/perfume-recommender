@@ -1,15 +1,49 @@
-# 🌸 Perfume Recommender — AI/ML Project 
+# 🧴 AI Perfume Recommender  
+### Data-Driven & AI-Enhanced Fragrance Discovery  
 
-Find your next signature scent by describing what you like (e.g., *“Dior Sauvage, citrus, summer, office”*), and get smart recommendations with clear explanations.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.119.0-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.9-blue?logo=python)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-0db7ed?logo=docker)](https://www.docker.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4omini-412991?logo=openai)](https://openai.com/)
+[![Render](https://img.shields.io/badge/Deployed%20on-Render-46E3B7?logo=render)](https://perfume-recommender-vj81.onrender.com)
 
-**Live demo:** https://perfume-recommender-vj81.onrender.com
+---
 
+An intelligent **perfume recommendation web app** that combines **machine-learned similarity scoring**, **rule-based filters**, and **GPT-4o reasoning** to deliver personalized fragrance suggestions.  
+
+Users can input favorite perfumes, scent notes, or occasions — and the system ranks matches using a **hybrid weighted algorithm** built on:
+
+- 🧠 **Semantic vector similarity** between perfume descriptions and user preferences  
+- 🧾 **Use-case scoring** for contexts like office, date, summer, and winter  
+- ⚙️ **Weighted composite scoring** of longevity, sillage, rating value, and count  
+- 💬 **AI reasoning** powered by GPT-4o for short, human-like explanations  
+
+Built with **FastAPI**, **Pandas**, and **OpenAI API**, the system is fully **Dockerized**, **deployed on Render**, and optimized for **512 MB memory**.  
+It includes **SlowAPI rate-limiting**, **daily IP quotas**, and a **modern beige-themed UI** for a seamless experience.
+
+🌐 **Live Demo:** [perfume-recommender-vj81.onrender.com](https://perfume-recommender-vj81.onrender.com)
 > Built for speed and clarity: FastAPI backend, semantic similarity + rule filters, optional LLM “why” reasoning, clean beige UI.
 > A hybrid recommendation system that blends **semantic retrieval**, **heuristic ranking**, and **GenAI explanations** to suggest fragrances based on user taste, use-cases, and constraints. Built with **FastAPI + Pandas + Vanilla JS**.
 
 ---
----
+## 🌟 Project Highlights
 
+- **💡 AI-Powered Perfume Recommender**  
+  Built with **FastAPI**, **OpenAI GPT-4o**, and semantic similarity scoring — generating personalized perfume suggestions based on user preferences, notes, and use-cases.
+
+- **⚡ Lightweight & Production-Ready**  
+  Fully containerized using **Docker**, deployed seamlessly on **Render Cloud**, and optimized to run under **512 MB memory** for free-tier environments.
+
+- **🧠 Smart Hybrid Scoring Algorithm**  
+  Combines vector-based similarity, user filters (price, longevity, sillage, rating), and AI-generated explanations — delivering context-aware, human-like recommendations.
+
+- **🔒 Secure & Cost-Efficient**  
+  Protected with **SlowAPI rate limiting**, IP-based daily quotas, capped LLM calls, and isolated `.env` secrets — balancing performance and cost safety.
+
+- **🎨 Modern, Responsive UI**  
+  Interactive **HTML + Vanilla JS frontend**, beige-themed minimalist design with dynamic tags, warning banners, and animated feedback for capped AI usage.
+
+---
 ## Table of Contents
 
 1. [Project Goals and Deployment](#project-goals)
@@ -101,6 +135,7 @@ This deployment pipeline makes the **Perfume Recommender**:
 - Source: **Fragrantica** dataset (public datasets and community exports).  
 - Strategy: prefer datasets that include **brand, name, accords, description, rating, longevity, sillage**.  
 - Downloaded raw CSV/JSON and placed an intermediate file in `data/` (not committed if license-sensitive).
+- Normal Data contains 60.000+ more rows, but I optimized for 'Render free tier under 512 MB ram.'
 
 ### 2) Cleaning
 Implement a small cleaning script (example `scripts/clean_fragrantica.py` or integrated in your pipeline):

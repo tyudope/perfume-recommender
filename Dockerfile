@@ -1,30 +1,47 @@
-# ===== Base image (match local Python 3.9) =====
+# ------------------------------
+# 1️⃣ Base image
+# ------------------------------
 FROM python:3.9-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Prevents Python from buffering stdout/stderr (good for logs)
+ENV PYTHONUNBUFFERED=1
 
-# System deps for building wheels (pandas, numpy, etc.)
+# ------------------------------
+# 2️⃣ Install dependencies
+# ------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl && \
-    rm -rf /var/lib/apt/lists/*
+    build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Work inside /app
+# ------------------------------
+# 3️⃣ Set working directory
+# ------------------------------
 WORKDIR /app
 
-# Install dependencies first (layer cache)
+# ------------------------------
+# 4️⃣ Copy dependency list and install packages
+# ------------------------------
 COPY perfume-recommender/backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-# Copy the backend (includes app/, data/, static/, templates/)
+# ------------------------------
+# 5️⃣ Copy source code
+# ------------------------------
 COPY perfume-recommender/backend /app/backend
+COPY perfume-recommender/data /app/data
 
-# Default envs (override at runtime)
-ENV HOST=0.0.0.0 \
-    PORT=8000
+# ------------------------------
+# 6️⃣ Default environment variables (can be overridden by Render)
+# ------------------------------
+ENV HOST=0.0.0.0
+ENV PORT=8000
 
-EXPOSE 8000
+# ------------------------------
+# 7️⃣ Expose the app port
+# ------------------------------
+EXPOSE ${PORT}
 
-# Run FastAPI (use JSON-form CMD)
-WORKDIR /app/backend
+# ------------------------------
+# 8️⃣ Start the FastAPI app using Uvicorn
+# ------------------------------
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

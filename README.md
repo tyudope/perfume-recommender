@@ -12,7 +12,7 @@ Find your next signature scent by describing what you like (e.g., *“Dior Sauva
 
 ## Table of Contents
 
-1. [Project Goals](#project-goals)  
+1. [Project Goals and Deployment](#project-goals)
 2. [High-Level Architecture](#high-level-architecture)  
 3. [Data: Collection → Cleaning → Final Schema](#data-collection--cleaning--final-schema)  
 4. [Algorithms: Retrieval, Scoring, Explainability](#algorithms-retrieval-scoring-explainability)  
@@ -38,6 +38,28 @@ Find your next signature scent by describing what you like (e.g., *“Dior Sauva
 - Make it **safe to demo locally** without racking up unexpected LLM costs.
 
 ---
+
+### 🚀 Deployment
+This project runs inside a Docker container and is hosted on Render for simplicity and scalability.  
+- Fully containerized (`Dockerfile` included).  
+- Auto-deployed from GitHub with Render CI/CD.  
+- Live demo: [perfume-recommender-vj81.onrender.com](https://perfume-recommender-vj81.onrender.com)
+
+---
+
+### 🚀 Result
+This deployment pipeline makes the **Perfume Recommender**:
+- Fully reproducible (same code → same container → same behavior).
+- Secure (keys and limits managed through environment variables).
+- Cloud-ready (zero manual configuration after push).
+- Scalable and portable (Docker image can run on any other platform).
+
+> 🧩 In short: *Build once, run anywhere* — a deployable, production-grade showcase for a Machine Learning Engineer portfolio.
+
+
+---
+
+
 
 ## High-Level Architecture
 
@@ -261,8 +283,8 @@ MAX_LLM_EXPLAINS=5
 - **Frontend safeguards**  
   The UI prevents excessive LLM usage and **visually indicates** when the AI reasoning is capped or near limit (red badges + smooth fade-in warning banner).  
 
-- **Abuse protection (optional)**  
-  Additional middleware such as `slowapi` or Redis-backed rate limiting can be added if deploying publicly or at scale.  
+- **Rate limiting with SlowAPI**  
+  The backend actively uses [`SlowAPI`](https://pypi.org/project/slowapi/) middleware to enforce **per-IP request throttling**. This ensures fair usage and helps protect against spam, denial-of-service attempts, or automated abuse.  
 
 - **Safe logging**  
   Logs capture only high-level actions and errors — never personal data, API keys, or full request bodies.

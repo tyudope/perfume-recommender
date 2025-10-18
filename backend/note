@@ -6,3 +6,11 @@ uvicorn --app-dir perfume-recommender/backend app.main:app --reload --host 0.0.0
 
 docker run --rm -p 8000:8000 \
   --env-file perfume-recommender/backend/.env \
+
+# Build image.
+docker build -t perfume-recommender:latest .
+
+# Run container (with your local env)
+docker run --rm -p 8000:8000 \
+  --env-file perfume-recommender/backend/.env \
+  perfume-recommender:latest

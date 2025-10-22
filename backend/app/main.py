@@ -129,7 +129,7 @@ def load_df() -> pd.DataFrame:
                 if c in df.columns:
                     df[c] = df[c].fillna("")
 
-            # ✅ NEW: limit dataset to 5000 random samples for memory safety
+            #  NEW: limit dataset to 5000 random samples for memory safety
             if len(df) > 5000:
                 df = df.sample(5000, random_state=42).reset_index(drop=True)
 
